@@ -1,0 +1,286 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  CUSTOMER
+  ORGANIZER
+  ADMIN
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  CANCELLED
+  COMPLETED
+}
+
+enum TransactionStatus {
+  PENDING_PAYMENT
+  WAITING_CONFIRMATION
+  CONFIRMED
+  REJECTED
+  CANCELLED
+  EXPIRED
+  COMPLETED
+}
+
+enum TicketType {
+  FREE
+  PAID
+}
+
+model User {
+  id                String    @id @default(cuid())
+  email             String    @unique
+  password          String
+  name              String
+  role              Role      @default(CUSTOMER)
+  avatar            String?
+  phone             String?
+  referralCode      String    @unique
+  referredBy        String?
+  isVerified        Boolean   @default(false)
+  verificationToken String?
+  resetToken        String?
+  resetTokenExpiry  DateTime?
+  refreshToken      String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  organizer    Organizer?
+  transactions Transaction[]
+  points       Point[]
+  reviews      Review[]
+  coupons      Coupon[]
+
+  @@map("users")
+}
+
+model Organizer {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  name        String
+  description String?  @db.Text
+  logo        String?
+  banner      String?
+  website     String?
+  instagram   String?
+  twitter     String?
+  facebook    String?
+  phone       String?
+  address     String?
+  city        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  events Event[]
+
+  @@map("organizers")
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  icon        String?
+  description String?
+  color       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  events Event[]
+
+  @@map("categories")
+}
+
+model Event {
+  id                   String      @id @default(cuid())
+  organizerId          String
+  categoryId           String
+  name                 String
+  slug                 String      @unique
+  description          String      @db.Text
+  thumbnail            String?
+  banner               String?
+  venue                String
+  address              String
+  city                 String
+  province             String?
+  googleMapsUrl        String?
+  startDate            DateTime
+  endDate              DateTime
+  registrationDeadline DateTime
+  capacity             Int
+  availableSeats       Int
+  status               EventStatus @default(DRAFT)
+  isFeatured           Boolean     @default(false)
+  terms                String?     @db.Text
+  contactEmail         String?
+  contactPhone         String?
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+
+  organizer    Organizer     @relation(fields: [organizerId], references: [id])
+  category     Category      @relation(fields: [categoryId], references: [id])
+  tickets      Ticket[]
+  vouchers     Voucher[]
+  transactions Transaction[]
+  reviews      Review[]
+
+  @@map("events")
+}
+
+model Ticket {
+  id          String     @id @default(cuid())
+  eventId     String
+  name        String
+  description String?
+  type        TicketType @default(PAID)
+  price       Decimal    @db.Decimal(12, 2)
+  quantity    Int
+  available   Int
+  maxPerOrder Int        @default(10)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  event              Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  transactionDetails TransactionDetail[]
+
+  @@map("tickets")
+}
+
+model Voucher {
+  id          String   @id @default(cuid())
+  eventId     String
+  code        String
+  discount    Decimal  @db.Decimal(5, 2)
+  isPercent   Boolean  @default(true)
+  maxUses     Int
+  usedCount   Int      @default(0)
+  minPurchase Decimal? @db.Decimal(12, 2)
+  maxDiscount Decimal? @db.Decimal(12, 2)
+  startDate   DateTime
+  endDate     DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  event        Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@unique([eventId, code])
+  @@map("vouchers")
+}
+
+model Coupon {
+  id        String   @id @default(cuid())
+  userId    String
+  code      String   @unique
+  discount  Decimal  @db.Decimal(5, 2)
+  isPercent Boolean  @default(true)
+  isUsed    Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("coupons")
+}
+
+model Point {
+  id          String   @id @default(cuid())
+  userId      String
+  amount      Int
+  description String
+  expiresAt   DateTime
+  isExpired   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("points")
+}
+
+model Transaction {
+  id              String            @id @default(cuid())
+  userId          String
+  eventId         String
+  voucherId       String?
+  status          TransactionStatus @default(PENDING_PAYMENT)
+  subtotal        Decimal           @db.Decimal(12, 2)
+  voucherDiscount Decimal           @default(0) @db.Decimal(12, 2)
+  pointsUsed      Int               @default(0)
+  pointsDiscount  Decimal           @default(0) @db.Decimal(12, 2)
+  total           Decimal           @db.Decimal(12, 2)
+  paymentDeadline DateTime
+  confirmedAt     DateTime?
+  completedAt     DateTime?
+  cancelledAt     DateTime?
+  notes           String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  user          User                @relation(fields: [userId], references: [id])
+  event         Event               @relation(fields: [eventId], references: [id])
+  voucher       Voucher?            @relation(fields: [voucherId], references: [id])
+  details       TransactionDetail[]
+  paymentProofs PaymentProof[]
+
+  @@map("transactions")
+}
+
+model TransactionDetail {
+  id            String   @id @default(cuid())
+  transactionId String
+  ticketId      String
+  quantity      Int
+  price         Decimal  @db.Decimal(12, 2)
+  subtotal      Decimal  @db.Decimal(12, 2)
+  createdAt     DateTime @default(now())
+
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  ticket      Ticket      @relation(fields: [ticketId], references: [id])
+
+  @@map("transaction_details")
+}
+
+model PaymentProof {
+  id            String   @id @default(cuid())
+  transactionId String
+  imageUrl      String
+  uploadedAt    DateTime @default(now())
+  notes         String?
+
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@map("payment_proofs")
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  userId     String
+  eventId    String
+  rating     Int
+  comment    String?  @db.Text
+  images     String[]
+  isVerified Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user  User  @relation(fields: [userId], references: [id])
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventId])
+  @@map("reviews")
+}
