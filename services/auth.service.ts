@@ -1,10 +1,9 @@
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
-import crypto from "crypto";
-import prisma from "../config/database";
-import { config } from "../config";
-import { generateReferralCode } from "../utils/response";
-import { Prisma } from "@prisma/client/extension";
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+import prisma from '../config/database';
+import { config } from '../config';
+import { generateReferralCode } from '../utils/response';
 
 export class AuthService {
   async register(data: {
@@ -25,7 +24,7 @@ export class AuthService {
       referredByUser = await prisma.user.findUnique({ where: { referralCode: data.referralCode } });
     }
 
-    const user = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    const user = await prisma.$transaction(async (tx) => {
       const newUser = await tx.user.create({
         data: {
           name: data.name,

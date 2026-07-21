@@ -7,6 +7,7 @@ dotenv.config();
 
 import { config } from "./config";
 import authRoutes from "./routes/auth.routes";
+import eventRoutes from "./routes/event.routes";
 import { errorHandler, notFound } from "./middlewares/error.middleware";
 
 const app = express();
@@ -22,6 +23,7 @@ app.use("/api", limiter);
 
 // Routes
 app.use("/api/auth", authRoutes);
+app.use("/api/events", eventRoutes);
 
 // Health check
 app.get("/health", (_req, res) =>
