@@ -1,4 +1,3 @@
-import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { config } from "../config";
@@ -18,10 +17,7 @@ export class AuthService {
     });
     if (existingUser) throw new Error("Email already registered");
 
-    const hashedPassword = await bcrypt.hash(
-      data.password,
-      config.bcrypt.saltRounds,
-    );
+    const password = data.password;
     const referralCode = generateReferralCode();
 
     let referredByUser = null;
@@ -36,7 +32,7 @@ export class AuthService {
         data: {
           name: data.name,
           email: data.email,
-          password: hashedPassword,
+          password, // simpan plain text
           role: data.role,
           referralCode,
           referredBy: referredByUser?.id,
@@ -87,8 +83,9 @@ export class AuthService {
     });
     if (!user) throw new Error("Invalid credentials");
 
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) throw new Error("Invalid credentials");
+    if (password !== user.password) {
+      throw new Error("Invalid credentials");
+    }
 
     const accessToken = this.generateAccessToken(
       user.id,
@@ -165,14 +162,10 @@ export class AuthService {
     });
     if (!user) throw new Error("Invalid or expired reset token");
 
-    const hashedPassword = await bcrypt.hash(
-      newPassword,
-      config.bcrypt.saltRounds,
-    );
     await prisma.user.update({
       where: { id: user.id },
       data: {
-        password: hashedPassword,
+        password: newPassword,
         resetToken: null,
         resetTokenExpiry: null,
       },
