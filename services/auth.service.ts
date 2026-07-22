@@ -1,27 +1,34 @@
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import crypto from 'crypto';
-import prisma from '../config/database';
-import { config } from '../config';
-import { generateReferralCode } from '../utils/response';
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import crypto from "crypto";
+import { config } from "../config";
+import { generateReferralCode } from "../utils/response";
+import { prisma } from "../lib/prisma";
 
 export class AuthService {
   async register(data: {
     name: string;
     email: string;
     password: string;
-    role: 'CUSTOMER' | 'ORGANIZER';
+    role: "CUSTOMER" | "ORGANIZER";
     referralCode?: string;
   }) {
-    const existingUser = await prisma.user.findUnique({ where: { email: data.email } });
-    if (existingUser) throw new Error('Email already registered');
+    const existingUser = await prisma.user.findUnique({
+      where: { email: data.email },
+    });
+    if (existingUser) throw new Error("Email already registered");
 
-    const hashedPassword = await bcrypt.hash(data.password, config.bcrypt.saltRounds);
+    const hashedPassword = await bcrypt.hash(
+      data.password,
+      config.bcrypt.saltRounds,
+    );
     const referralCode = generateReferralCode();
-    
+
     let referredByUser = null;
     if (data.referralCode) {
-      referredByUser = await prisma.user.findUnique({ where: { referralCode: data.referralCode } });
+      referredByUser = await prisma.user.findUnique({
+        where: { referralCode: data.referralCode },
+      });
     }
 
     const user = await prisma.$transaction(async (tx) => {
@@ -36,7 +43,7 @@ export class AuthService {
         },
       });
 
-      if (data.role === 'ORGANIZER') {
+      if (data.role === "ORGANIZER") {
         await tx.organizer.create({
           data: { userId: newUser.id, name: data.name },
         });
@@ -78,13 +85,21 @@ export class AuthService {
       where: { email },
       include: { organizer: true },
     });
-    if (!user) throw new Error('Invalid credentials');
+    if (!user) throw new Error("Invalid credentials");
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) throw new Error('Invalid credentials');
+    if (!isPasswordValid) throw new Error("Invalid credentials");
 
-    const accessToken = this.generateAccessToken(user.id, user.email, user.role);
-    const refreshToken = this.generateRefreshToken(user.id, user.email, user.role);
+    const accessToken = this.generateAccessToken(
+      user.id,
+      user.email,
+      user.role,
+    );
+    const refreshToken = this.generateRefreshToken(
+      user.id,
+      user.email,
+      user.role,
+    );
 
     await prisma.user.update({
       where: { id: user.id },
@@ -97,17 +112,35 @@ export class AuthService {
 
   async refreshToken(token: string) {
     try {
-      const decoded = jwt.verify(token, config.jwt.refreshSecret) as { userId: string; email: string; role: string };
-      const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
-      if (!user || user.refreshToken !== token) throw new Error('Invalid refresh token');
+      const decoded = jwt.verify(token, config.jwt.refreshSecret) as {
+        userId: string;
+        email: string;
+        role: string;
+      };
+      const user = await prisma.user.findUnique({
+        where: { id: decoded.userId },
+      });
+      if (!user || user.refreshToken !== token)
+        throw new Error("Invalid refresh token");
 
-      const accessToken = this.generateAccessToken(user.id, user.email, user.role);
-      const newRefreshToken = this.generateRefreshToken(user.id, user.email, user.role);
+      const accessToken = this.generateAccessToken(
+        user.id,
+        user.email,
+        user.role,
+      );
+      const newRefreshToken = this.generateRefreshToken(
+        user.id,
+        user.email,
+        user.role,
+      );
 
-      await prisma.user.update({ where: { id: user.id }, data: { refreshToken: newRefreshToken } });
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { refreshToken: newRefreshToken },
+      });
       return { accessToken, refreshToken: newRefreshToken };
     } catch {
-      throw new Error('Invalid refresh token');
+      throw new Error("Invalid refresh token");
     }
   }
 
@@ -115,7 +148,7 @@ export class AuthService {
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) return; // Don't reveal if user exists
 
-    const token = crypto.randomBytes(32).toString('hex');
+    const token = crypto.randomBytes(32).toString("hex");
     const expiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
     await prisma.user.update({
@@ -130,28 +163,38 @@ export class AuthService {
     const user = await prisma.user.findFirst({
       where: { resetToken: token, resetTokenExpiry: { gt: new Date() } },
     });
-    if (!user) throw new Error('Invalid or expired reset token');
+    if (!user) throw new Error("Invalid or expired reset token");
 
-    const hashedPassword = await bcrypt.hash(newPassword, config.bcrypt.saltRounds);
+    const hashedPassword = await bcrypt.hash(
+      newPassword,
+      config.bcrypt.saltRounds,
+    );
     await prisma.user.update({
       where: { id: user.id },
-      data: { password: hashedPassword, resetToken: null, resetTokenExpiry: null },
+      data: {
+        password: hashedPassword,
+        resetToken: null,
+        resetTokenExpiry: null,
+      },
     });
   }
 
   async logout(userId: string) {
-    await prisma.user.update({ where: { id: userId }, data: { refreshToken: null } });
+    await prisma.user.update({
+      where: { id: userId },
+      data: { refreshToken: null },
+    });
   }
 
   private generateAccessToken(userId: string, email: string, role: string) {
     return jwt.sign({ userId, email, role }, config.jwt.secret, {
-      expiresIn: config.jwt.expiresIn as jwt.SignOptions['expiresIn'],
+      expiresIn: config.jwt.expiresIn as jwt.SignOptions["expiresIn"],
     });
   }
 
   private generateRefreshToken(userId: string, email: string, role: string) {
     return jwt.sign({ userId, email, role }, config.jwt.refreshSecret, {
-      expiresIn: config.jwt.refreshExpiresIn as jwt.SignOptions['expiresIn'],
+      expiresIn: config.jwt.refreshExpiresIn as jwt.SignOptions["expiresIn"],
     });
   }
 }
