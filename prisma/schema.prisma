@@ -48,15 +48,15 @@ model User {
   role              Role      @default(CUSTOMER)
   avatar            String?
   phone             String?
-  referralCode      String    @unique
+  referralCode      String?    @unique
   referredBy        String?
-  isVerified        Boolean   @default(false)
+  isVerified        Boolean?   @default(false)
   verificationToken String?
   resetToken        String?
   resetTokenExpiry  DateTime?
   refreshToken      String?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  createdAt         DateTime?  @default(now())
+  updatedAt         DateTime?  @updatedAt
 
   organizer    Organizer?
   transactions Transaction[]

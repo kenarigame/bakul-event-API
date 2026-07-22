@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
-import prisma from "../config/database";
 import { sendSuccess, sendError } from "../utils/response";
+import { prisma } from "../lib/prisma";
 
 export class VoucherController {
   async createVoucher(req: Request, res: Response): Promise<void> {
