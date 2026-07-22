@@ -1,6 +1,7 @@
-import { Request, Response } from 'express';
-import { AuthService } from '../services/auth.service';
-import { sendSuccess, sendError } from '../utils/response';
+import { Request, Response } from "express";
+import { AuthService } from "../services/auth.service";
+import { sendSuccess, sendError } from "../utils/response";
+import { prisma } from "../lib/prisma";
 
 const authService = new AuthService();
 
@@ -8,7 +9,7 @@ export class AuthController {
   async register(req: Request, res: Response): Promise<void> {
     try {
       const user = await authService.register(req.body);
-      sendSuccess(res, user, 'Registration successful', 201);
+      sendSuccess(res, user, "Registration successful", 201);
     } catch (err) {
       sendError(res, (err as Error).message, 400);
     }
@@ -17,7 +18,7 @@ export class AuthController {
   async login(req: Request, res: Response): Promise<void> {
     try {
       const result = await authService.login(req.body.email, req.body.password);
-      sendSuccess(res, result, 'Login successful');
+      sendSuccess(res, result, "Login successful");
     } catch (err) {
       sendError(res, (err as Error).message, 401);
     }
@@ -26,7 +27,7 @@ export class AuthController {
   async refreshToken(req: Request, res: Response): Promise<void> {
     try {
       const tokens = await authService.refreshToken(req.body.refreshToken);
-      sendSuccess(res, tokens, 'Token refreshed');
+      sendSuccess(res, tokens, "Token refreshed");
     } catch (err) {
       sendError(res, (err as Error).message, 401);
     }
@@ -35,7 +36,11 @@ export class AuthController {
   async forgotPassword(req: Request, res: Response): Promise<void> {
     try {
       await authService.forgotPassword(req.body.email);
-      sendSuccess(res, null, 'If that email is registered, you will receive a reset link');
+      sendSuccess(
+        res,
+        null,
+        "If that email is registered, you will receive a reset link",
+      );
     } catch (err) {
       sendError(res, (err as Error).message);
     }
@@ -44,7 +49,7 @@ export class AuthController {
   async resetPassword(req: Request, res: Response): Promise<void> {
     try {
       await authService.resetPassword(req.body.token, req.body.password);
-      sendSuccess(res, null, 'Password reset successful');
+      sendSuccess(res, null, "Password reset successful");
     } catch (err) {
       sendError(res, (err as Error).message, 400);
     }
@@ -53,7 +58,7 @@ export class AuthController {
   async logout(req: Request, res: Response): Promise<void> {
     try {
       await authService.logout(req.user!.userId);
-      sendSuccess(res, null, 'Logged out successfully');
+      sendSuccess(res, null, "Logged out successfully");
     } catch (err) {
       sendError(res, (err as Error).message);
     }
@@ -61,14 +66,15 @@ export class AuthController {
 
   async getProfile(req: Request, res: Response): Promise<void> {
     try {
-      const user = await import('../config/database').then(m =>
-        m.default.user.findUnique({
-          where: { id: req.user!.userId },
-          include: { organizer: true },
-          omit: { password: true, refreshToken: true },
-        })
-      );
-      sendSuccess(res, user, 'Profile retrieved');
+      const user = await prisma.user.findUnique({
+        where: { id: req.user!.userId },
+        include: { organizer: true },
+        omit: {
+          password: true,
+          refreshToken: true,
+        },
+      });
+      sendSuccess(res, user, "Profile retrieved");
     } catch (err) {
       sendError(res, (err as Error).message);
     }
