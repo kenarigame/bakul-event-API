@@ -9,7 +9,7 @@ export class AuthService {
     name: string;
     email: string;
     password: string;
-    role: "CUSTOMER" | "ORGANIZER";
+    role: "CUSTOMER" | "ORGANIZER" | "ADMIN";
     referralCode?: string;
   }) {
     const existingUser = await prisma.user.findUnique({
