@@ -14,7 +14,7 @@ export class VoucherController {
       }
 
       const event = await prisma.event.findFirst({
-        where: { id: req.params.eventId, organizerId: organizer.id },
+        where: { id: req.params.eventId as string, organizerId: organizer.id },
       });
       if (!event) {
         sendError(res, "Event not found", 404);
@@ -53,7 +53,7 @@ export class VoucherController {
 
       const vouchers = await prisma.voucher.findMany({
         where: {
-          eventId: req.params.eventId,
+          eventId: req.params.eventId as string,
           event: { organizerId: organizer.id },
         },
         orderBy: { createdAt: "desc" },
@@ -76,14 +76,17 @@ export class VoucherController {
       }
 
       const voucher = await prisma.voucher.findFirst({
-        where: { id: req.params.id, event: { organizerId: organizer.id } },
+        where: {
+          id: req.params.id as string,
+          event: { organizerId: organizer.id },
+        },
       });
       if (!voucher) {
         sendError(res, "Voucher not found", 404);
         return;
       }
 
-      await prisma.voucher.delete({ where: { id: req.params.id } });
+      await prisma.voucher.delete({ where: { id: req.params.id as string } });
       sendSuccess(res, null, "Voucher deleted");
     } catch (err) {
       sendError(res, (err as Error).message);
@@ -92,7 +95,8 @@ export class VoucherController {
 
   async validateVoucher(req: Request, res: Response): Promise<void> {
     try {
-      const { eventId, code } = req.params;
+      const eventId = req.params.eventId as string;
+      const code = req.params.code as string;
       const voucher = await prisma.voucher.findUnique({
         where: { eventId_code: { eventId, code: code.toUpperCase() } },
       });

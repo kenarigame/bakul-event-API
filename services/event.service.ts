@@ -1,4 +1,3 @@
-
 import { generateSlug } from "../utils/response";
 import { prisma } from "../lib/prisma";
 import { Prisma } from "../generated/prisma/client";
@@ -16,8 +15,8 @@ interface EventFilters {
   isFree?: boolean;
   organizerId?: string;
   status?: string;
-  sortBy: string;
-  sortOrder: "asc" | "desc";
+  sortBy?: "startDate" | "createdAt" | "name" | "capacity";
+  sortOrder?: "asc" | "desc";
 }
 
 export class EventService {
@@ -96,9 +95,10 @@ export class EventService {
   }
 
   async getEvents(filters: EventFilters) {
+    const page = Number(filters.page) || 1;
+    const limit = Number(filters.limit) || 12;
+
     const {
-      page,
-      limit,
       search,
       categoryId,
       city,
@@ -109,8 +109,8 @@ export class EventService {
       isFree,
       organizerId,
       status,
-      sortBy,
-      sortOrder,
+      sortBy = "startDate",
+      sortOrder = "asc",
     } = filters;
     const skip = (page - 1) * limit;
 
@@ -129,14 +129,17 @@ export class EventService {
     if (startDate) where.startDate = { gte: new Date(startDate) };
     if (endDate) where.endDate = { lte: new Date(endDate) };
     if (organizerId) where.organizerId = organizerId;
-    if (status)
+    if (status) {
       where.status = status as
         | "DRAFT"
         | "PUBLISHED"
         | "CANCELLED"
         | "COMPLETED";
-    else where.status = "PUBLISHED";
-
+      // else where.status = "PUBLISHED";
+    } else if (!organizerId) {
+      // Hanya endpoint publik yang otomatis menampilkan PUBLISHED
+      where.status = "PUBLISHED";
+    }
     if (isFree !== undefined) {
       if (isFree) {
         where.tickets = { some: { type: "FREE" } };
