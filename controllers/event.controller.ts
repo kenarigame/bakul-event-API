@@ -1,27 +1,40 @@
-import { Request, Response } from 'express';
-import { EventService } from '../services/event.service';
-import { sendSuccess, sendError } from '../utils/response';
+import { Request, Response } from "express";
+import { EventService } from "../services/event.service";
+import { sendSuccess, sendError } from "../utils/response";
+import { prisma } from "../lib/prisma";
 
 const eventService = new EventService();
 
 export class EventController {
   async createEvent(req: Request, res: Response): Promise<void> {
+    console.log("===== CREATE EVENT CONTROLLER =====");
+    console.log(req.body);
     try {
-      const organizer = await import('../config/database').then(m =>
-        m.default.organizer.findUnique({ where: { userId: req.user!.userId } })
-      );
-      if (!organizer) { sendError(res, 'Organizer profile not found', 404); return; }
+      console.log("BODY:", req.body);
+      const organizer = await prisma.organizer.findUnique({
+        where: {
+          userId: req.user!.userId,
+        },
+      });
+      console.log("ORGANIZER:", organizer);
+      if (!organizer) {
+        sendError(res, "Organizer profile not found", 404);
+        return;
+      }
       const event = await eventService.createEvent(organizer.id, req.body);
-      sendSuccess(res, event, 'Event created successfully', 201);
+      sendSuccess(res, event, "Event created successfully", 201);
     } catch (err) {
+      console.error(err);
       sendError(res, (err as Error).message);
     }
   }
 
   async getEvents(req: Request, res: Response): Promise<void> {
     try {
-      const result = await eventService.getEvents(req.query as Parameters<EventService['getEvents']>[0]);
-      sendSuccess(res, result.events, 'Events retrieved', 200, {
+      const result = await eventService.getEvents(
+        req.query as unknown as Parameters<EventService["getEvents"]>[0],
+      );
+      sendSuccess(res, result.events, "Events retrieved", 200, {
         page: result.page,
         limit: result.limit,
         total: result.total,
@@ -34,9 +47,14 @@ export class EventController {
 
   async getEventBySlug(req: Request, res: Response): Promise<void> {
     try {
-      const event = await eventService.getEventBySlug(req.params.slug);
-      if (!event) { sendError(res, 'Event not found', 404); return; }
-      sendSuccess(res, event, 'Event retrieved');
+      const event = await eventService.getEventBySlug(
+        req.params.slug as string,
+      );
+      if (!event) {
+        sendError(res, "Event not found", 404);
+        return;
+      }
+      sendSuccess(res, event, "Event retrieved");
     } catch (err) {
       sendError(res, (err as Error).message);
     }
@@ -44,9 +62,14 @@ export class EventController {
 
   async getEventById(req: Request, res: Response): Promise<void> {
     try {
-      const event = await eventService.getEventById(req.params.id);
-      if (!event) { sendError(res, 'Event not found', 404); return; }
-      sendSuccess(res, event, 'Event retrieved');
+      const event = await eventService.getEventBySlug(
+        req.params.slug as string,
+      );
+      if (!event) {
+        sendError(res, "Event not found", 404);
+        return;
+      }
+      sendSuccess(res, event, "Event retrieved");
     } catch (err) {
       sendError(res, (err as Error).message);
     }
@@ -54,12 +77,21 @@ export class EventController {
 
   async updateEvent(req: Request, res: Response): Promise<void> {
     try {
-      const organizer = await import('../config/database').then(m =>
-        m.default.organizer.findUnique({ where: { userId: req.user!.userId } })
+      const organizer = await prisma.organizer.findUnique({
+        where: {
+          userId: req.user!.userId,
+        },
+      });
+      if (!organizer) {
+        sendError(res, "Organizer not found", 404);
+        return;
+      }
+      const event = await eventService.updateEvent(
+        req.params.id as string,
+        organizer.id,
+        req.body,
       );
-      if (!organizer) { sendError(res, 'Organizer not found', 404); return; }
-      const event = await eventService.updateEvent(req.params.id, organizer.id, req.body);
-      sendSuccess(res, event, 'Event updated successfully');
+      sendSuccess(res, event, "Event updated successfully");
     } catch (err) {
       sendError(res, (err as Error).message);
     }
@@ -67,12 +99,17 @@ export class EventController {
 
   async deleteEvent(req: Request, res: Response): Promise<void> {
     try {
-      const organizer = await import('../config/database').then(m =>
-        m.default.organizer.findUnique({ where: { userId: req.user!.userId } })
-      );
-      if (!organizer) { sendError(res, 'Organizer not found', 404); return; }
-      await eventService.deleteEvent(req.params.id, organizer.id);
-      sendSuccess(res, null, 'Event deleted successfully');
+      const organizer = await prisma.organizer.findUnique({
+        where: {
+          userId: req.user!.userId,
+        },
+      });
+      if (!organizer) {
+        sendError(res, "Organizer not found", 404);
+        return;
+      }
+      await eventService.deleteEvent(req.params.id as string, organizer.id);
+      sendSuccess(res, null, "Event deleted successfully");
     } catch (err) {
       sendError(res, (err as Error).message);
     }
@@ -80,12 +117,20 @@ export class EventController {
 
   async publishEvent(req: Request, res: Response): Promise<void> {
     try {
-      const organizer = await import('../config/database').then(m =>
-        m.default.organizer.findUnique({ where: { userId: req.user!.userId } })
+      const organizer = await prisma.organizer.findUnique({
+        where: {
+          userId: req.user!.userId,
+        },
+      });
+      if (!organizer) {
+        sendError(res, "Organizer not found", 404);
+        return;
+      }
+      const event = await eventService.publishEvent(
+        req.params.id as string,
+        organizer.id,
       );
-      if (!organizer) { sendError(res, 'Organizer not found', 404); return; }
-      const event = await eventService.publishEvent(req.params.id, organizer.id);
-      sendSuccess(res, event, 'Event published successfully');
+      sendSuccess(res, event, "Event published successfully");
     } catch (err) {
       sendError(res, (err as Error).message);
     }
@@ -94,7 +139,7 @@ export class EventController {
   async getFeaturedEvents(_req: Request, res: Response): Promise<void> {
     try {
       const events = await eventService.getFeaturedEvents();
-      sendSuccess(res, events, 'Featured events retrieved');
+      sendSuccess(res, events, "Featured events retrieved");
     } catch (err) {
       sendError(res, (err as Error).message);
     }
@@ -103,7 +148,7 @@ export class EventController {
   async getUpcomingEvents(_req: Request, res: Response): Promise<void> {
     try {
       const events = await eventService.getUpcomingEvents();
-      sendSuccess(res, events, 'Upcoming events retrieved');
+      sendSuccess(res, events, "Upcoming events retrieved");
     } catch (err) {
       sendError(res, (err as Error).message);
     }
@@ -111,10 +156,12 @@ export class EventController {
 
   async getCategories(_req: Request, res: Response): Promise<void> {
     try {
-      const categories = await import('../config/database').then(m =>
-        m.default.category.findMany({ orderBy: { name: 'asc' } })
-      );
-      sendSuccess(res, categories, 'Categories retrieved');
+      const categories = await prisma.category.findMany({
+        orderBy: {
+          name: "asc",
+        },
+      });
+      sendSuccess(res, categories, "Categories retrieved");
     } catch (err) {
       sendError(res, (err as Error).message);
     }
@@ -122,14 +169,31 @@ export class EventController {
 
   async getOrganizerEvents(req: Request, res: Response): Promise<void> {
     try {
-      const organizer = await import('../config/database').then(m =>
-        m.default.organizer.findUnique({ where: { userId: req.user!.userId } })
-      );
-      if (!organizer) { sendError(res, 'Organizer not found', 404); return; }
-      const page = parseInt(req.query.page as string || '1');
-      const limit = parseInt(req.query.limit as string || '10');
-      const result = await eventService.getEvents({ page, limit, organizerId: organizer.id, sortBy: 'createdAt', sortOrder: 'desc', status: req.query.status as string });
-      sendSuccess(res, result.events, 'Organizer events retrieved', 200, { page: result.page, limit: result.limit, total: result.total, totalPages: result.totalPages });
+      const organizer = await prisma.organizer.findUnique({
+        where: {
+          userId: req.user!.userId,
+        },
+      });
+      if (!organizer) {
+        sendError(res, "Organizer not found", 404);
+        return;
+      }
+      const page = parseInt((req.query.page as string) || "1");
+      const limit = parseInt((req.query.limit as string) || "10");
+      const result = await eventService.getEvents({
+        page,
+        limit,
+        organizerId: organizer.id,
+        sortBy: "createdAt",
+        sortOrder: "desc",
+        status: req.query.status as string,
+      });
+      sendSuccess(res, result.events, "Organizer events retrieved", 200, {
+        page: result.page,
+        limit: result.limit,
+        total: result.total,
+        totalPages: result.totalPages,
+      });
     } catch (err) {
       sendError(res, (err as Error).message);
     }

@@ -25,3 +25,11 @@ export const resetPasswordSchema = z.object({
 export const refreshTokenSchema = z.object({
   refreshToken: z.string().min(1, "Refresh token is required"),
 });
+
+export const categorySchema = z.object({
+  name: z.string().min(2),
+  slug: z.string().min(2),
+  icon: z.string().optional(),
+  color: z.string().optional(),
+  description: z.string().optional(),
+});

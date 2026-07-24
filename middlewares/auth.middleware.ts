@@ -19,16 +19,20 @@ export const authenticate = (
 ): void => {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith("Bearer ")) {
+    console.log("NO AUTH HEADER");
     sendError(res, "Authentication required", 401);
     return;
   }
 
   const token = authHeader.split(" ")[1];
+
   try {
     const decoded = jwt.verify(token, config.jwt.secret) as JwtPayload;
+
     req.user = decoded;
     next();
-  } catch {
+  } catch (err) {
+    console.error("JWT ERROR:", err);
     sendError(res, "Invalid or expired token", 401);
   }
 };

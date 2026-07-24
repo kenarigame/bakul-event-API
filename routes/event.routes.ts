@@ -25,6 +25,7 @@ router.get(
   ctrl.getOrganizerEvents.bind(ctrl),
 );
 router.get("/:slug", optionalAuth, ctrl.getEventBySlug.bind(ctrl));
+router.get("/:id", authenticate, ctrl.getEventById.bind(ctrl));
 router.post(
   "/",
   authenticate,
